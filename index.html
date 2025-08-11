@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Meditation Timer</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1020"/>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg: #f6f7fb;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #475569;
+    --border: #e2e8f0;
+    --primary: #2563eb;
+    --pill-bg:#eef2ff;
+    --pill-border:#e0e7ff;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0b1020;
+      --card:#0f172a;
+      --text:#e6edf6;
+      --muted:#93a4be;
+      --border:#1f2b44;
+      --primary:#60a5fa;
+      --pill-bg:#111a33;
+      --pill-border:#223055;
+    }
+  }
+  [data-theme="dark"]{
+    --bg:#0b1020;
+    --card:#0f172a;
+    --text:#e6edf6;
+    --muted:#93a4be;
+    --border:#1f2b44;
+    --primary:#60a5fa;
+    --pill-bg:#111a33;
+    --pill-border:#223055;
+  }
+  html,body{height:100%}
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); margin: 0; }
+  .app { max-width: 780px; margin: 0 auto; padding: 24px; }
+  .card { background: var(--card); border:1px solid var(--border); border-radius: 16px; padding: 20px; }
+  h1 { margin: 0 0 12px; font-size: 24px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  input, button, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 16px; background: transparent; color: var(--text); }
+  textarea { resize: vertical; min-height: 70px; }
+  button { cursor: pointer; border: 1px solid var(--border); background: var(--pill-bg); color: var(--text); }
+  button.primary { background: var(--primary); color: white; border-color: transparent; }
+  button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .controls { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .seglist { margin-top: 10px; }
+  .pill { display: inline-block; padding: 6px 10px; border-radius: 999px; background: var(--pill-bg); border:1px solid var(--pill-border); margin: 4px 6px 0 0; font-size: 13px; }
+  .circle-wrap { display:flex; justify-content:center; align-items:center; padding: 18px 0 8px; }
+  .circle { width: 260px; height: 260px; position: relative; }
+  .circle svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .time { position: absolute; inset: 0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+  .time .display { font-size: 44px; font-variant-numeric: tabular-nums; line-height: 1; }
+  .time .phase { margin-top: 6px; font-size: 14px; color: var(--muted); }
+  .theme { display:flex; align-items:center; gap:8px; justify-content:flex-end; }
+  .footer { margin-top: 10px; text-align:center; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="card">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div>
+        <h1>Meditation Timer</h1>
+        <div class="muted">Prepare time, segment bells, and bells at start/end. Dark mode and circular progress.</div>
+      </div>
+      <div class="theme">
+        <label for="themeSel" class="muted">Theme</label>
+        <select id="themeSel">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:14px;">
+      <div>
+        <label for="prepare">Prepare time (seconds)</label>
+        <input id="prepare" type="number" min="0" step="1" value="30">
+      </div>
+      <div>
+        <label for="segments">Segments (seconds, comma/space separated)</label>
+        <textarea id="segments">300, 300</textarea>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="startBellCount">Start bell count</label>
+        <input id="startBellCount" type="number" min="1" step="1" value="1">
+      </div>
+      <div>
+        <label for="segmentBellCount">Per-segment bell count</label>
+        <input id="segmentBellCount" type="number" min="1" step="1" value="1">
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="endBellCount">End bell count</label>
+        <input id="endBellCount" type="number" min="1" step="1" value="2">
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; margin-top:28px;">
+        <button id="testBell" type="button">Test bell</button>
+        <label style="display:inline-flex; align-items:center; gap:6px;" class="muted">
+          <input id="softBell" type="checkbox" checked>
+          Soft bell
+        </label>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="start" class="primary">Start</button>
+      <button id="pause">Pause</button>
+      <button id="reset">Reset</button>
+    </div>
+
+    <div class="circle-wrap">
+      <div class="circle">
+        <svg viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" stroke="var(--border)" stroke-width="10" fill="none" />
+          <circle id="progress" cx="60" cy="60" r="52" stroke="var(--primary)" stroke-width="10" stroke-linecap="round" fill="none" stroke-dasharray="326.72" stroke-dashoffset="326.72"/>
+        </svg>
+        <div class="time">
+          <div class="display" id="display">00:00</div>
+          <div class="phase" id="phase">Idle</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="seglist" id="segList"></div>
+    <div class="footer">Tip: Install as a PWA to run full screen and offline.</div>
+  </div>
+</div>
+
+<script>
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+  });
+}
+
+(function(){
+  const themeSel = document.getElementById("themeSel");
+  const savedTheme = localStorage.getItem("mt-theme") || "system";
+  themeSel.value = savedTheme;
+  applyTheme(savedTheme);
+  themeSel.addEventListener("change", (e)=>{
+    const v = e.target.value;
+    localStorage.setItem("mt-theme", v);
+    applyTheme(v);
+  });
+  function applyTheme(v){
+    if (v === "dark") document.documentElement.setAttribute("data-theme", "dark");
+    else if (v === "light") document.documentElement.removeAttribute("data-theme");
+    else { document.documentElement.removeAttribute("data-theme"); }
+  }
+
+  let ctx;
+  function ensureAudioCtx(){
+    if(!ctx){ ctx = new (window.AudioContext || window.webkitAudioContext)(); }
+  }
+  function ringBell({count=1, soft=true}={}){
+    ensureAudioCtx();
+    const gap = 420;
+    for(let i=0;i<count;i++){
+      const when = ctx.currentTime + i*(gap/1000);
+      chime(when, soft);
+    }
+  }
+  function chime(when, soft){
+    const baseFreq = 660;
+    const duration = soft ? 1.8 : 2.4;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, when);
+    gain.gain.exponentialRampToValueAtTime(soft ? 0.5 : 0.9, when + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + duration);
+    gain.connect(ctx.destination);
+    const carrier = ctx.createOscillator();
+    carrier.type = "sine";
+    carrier.frequency.setValueAtTime(baseFreq, when);
+    const mod = ctx.createOscillator();
+    mod.type = "sine";
+    mod.frequency.setValueAtTime(baseFreq*2.03, when);
+    const modGain = ctx.createGain();
+    modGain.gain.setValueAtTime(soft ? 70 : 120, when);
+    mod.connect(modGain);
+    modGain.connect(carrier.frequency);
+    carrier.connect(gain);
+    mod.start(when);
+    carrier.start(when);
+    const overtone = ctx.createOscillator();
+    overtone.type = "sine";
+    overtone.frequency.setValueAtTime(baseFreq*2.4, when);
+    const ovGain = ctx.createGain();
+    ovGain.gain.setValueAtTime(soft ? 0.06 : 0.1, when);
+    ovGain.gain.exponentialRampToValueAtTime(0.0001, when + duration*0.8);
+    overtone.connect(ovGain).connect(gain);
+    overtone.start(when);
+    carrier.stop(when + duration);
+    mod.stop(when + duration);
+    overtone.stop(when + duration*0.8);
+  }
+
+  const $ = s => document.querySelector(s);
+  const prepareEl = $("#prepare");
+  const segmentsEl = $("#segments");
+  const startBellCountEl = $("#startBellCount");
+  const segmentBellCountEl = $("#segmentBellCount");
+  const endBellCountEl = $("#endBellCount");
+  const softBellEl = $("#softBell");
+  const displayEl = $("#display");
+  const phaseEl = $("#phase");
+  const segListEl = $("#segList");
+  const startBtn = $("#start");
+  const pauseBtn = $("#pause");
+  const resetBtn = $("#reset");
+  const testBellBtn = $("#testBell");
+  const progressEl = $("#progress");
+
+  let plan = [];
+  let idx = -1;
+  let remaining = 0;
+  let currentPhaseSeconds = 0;
+  let timer = null;
+  let running = False = False;
+
+  let runningFlag = false;
+  let paused = false;
+
+  function parseSegments(){
+    const prep = Math.max(0, parseInt(prepareEl.value || "0", 10));
+    const segs = (segmentsEl.value || "").split(/[\s,]+/).map(s => parseInt(s,10)).filter(n => Number.isFinite(n) && n>0);
+    return {prep, segs};
+  }
+
+  function buildPlan(){
+    const {prep, segs} = parseSegments();
+    plan = [];
+    if (prep > 0) plan.push({type:"prepare", label:"Prepare", seconds:prep, bell:startBellCountEl.valueAsNumber || 1});
+    segs.forEach((s,i)=>{
+      plan.push({type:"segment", label:`Segment ${i+1}`, seconds:s, bell:segmentBellCountEl.valueAsNumber || 1});
+    });
+    return plan;
+  }
+
+  function format(s){
+    const m = Math.floor(s/60).toString().padStart(2,"0");
+    const ss = Math.floor(s%60).toString().padStart(2,"0");
+    return `${m}:${ss}`;
+  }
+
+  function renderSegList(){
+    segListEl.innerHTML = "";
+    buildPlan().forEach(p=>{
+      const el = document.createElement("span");
+      el.className = "pill";
+      el.textContent = `${p.label}: ${format(p.seconds)}`;
+      segListEl.appendChild(el);
+    });
+    if(plan.length===0){
+      segListEl.innerHTML = '<span class="muted">Add a prepare time and at least one segment.</span>';
+    }
+  }
+
+  const circumference = 2 * Math.PI * 52;
+  progressEl.setAttribute("stroke-dasharray", circumference.toFixed(2));
+  function setProgress(fraction){
+    const offset = circumference * (1 - Math.max(0, Math.min(1, fraction)));
+    progressEl.setAttribute("stroke-dashoffset", offset.toFixed(2));
+  }
+
+  function setPhaseText(){
+    if (idx<0 || idx>=plan.length) { phaseEl.textContent = "Idle"; return; }
+    phaseEl.textContent = `${plan[idx].label}`;
+  }
+
+  function step(){
+    if (!runningFlag) return;
+    displayEl.textContent = format(remaining);
+    if (currentPhaseSeconds > 0){
+      const frac = 1 - (remaining / currentPhaseSeconds);
+      setProgress(frac);
+    } else {
+      setProgress(0);
+    }
+    if (remaining <= 0){
+      nextPhase();
+      return;
+    }
+    remaining -= 1;
+  }
+
+  function nextPhase(){
+    idx += 1;
+    if (idx >= plan.length){
+      displayEl.textContent = "00:00";
+      phaseEl.textContent = "Done";
+      setProgress(1);
+      ringBell({count: endBellCountEl.valueAsNumber || 2, soft: softBellEl.checked});
+      clearInterval(timer);
+      runningFlag = false;
+      paused = false;
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      resetBtn.disabled = false;
+      return;
+    }
+    remaining = plan[idx].seconds;
+    currentPhaseSeconds = plan[idx].seconds;
+    setPhaseText();
+    setProgress(0);
+    ringBell({count: plan[idx].bell || 1, soft: softBellEl.checked});
+  }
+
+  function start(){
+    if (runningFlag && paused){
+      paused = false;
+      runningFlag = true;
+      pauseBtn.textContent = "Pause";
+      clearInterval(timer);
+      timer = setInterval(step, 1000);
+      return;
+    }
+    renderSegList();
+    buildPlan();
+    if(plan.length===0) { alert("Please set a prepare time and at least one segment."); return; }
+    ringBell({count: startBellCountEl.valueAsNumber || 1, soft: softBellEl.checked});
+    idx = -1;
+    remaining = 0;
+    currentPhaseSeconds = 0;
+    runningFlag = true;
+    paused = false;
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+    resetBtn.disabled = false;
+    pauseBtn.textContent = "Pause";
+    nextPhase();
+    clearInterval(timer);
+    timer = setInterval(step, 1000);
+  }
+
+  function pause(){
+    if (!runningFlag) return;
+    paused = !paused;
+    pauseBtn.textContent = paused ? "Resume" : "Pause";
+    if (paused){
+      runningFlag = false;
+      clearInterval(timer);
+    } else {
+      runningFlag = true;
+      clearInterval(timer);
+      timer = setInterval(step, 1000);
+    }
+  }
+
+  function reset(){
+    clearInterval(timer);
+    runningFlag = false;
+    paused = false;
+    idx = -1;
+    remaining = 0;
+    currentPhaseSeconds = 0;
+    displayEl.textContent = "00:00";
+    phaseEl.textContent = "Idle";
+    setProgress(0);
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    resetBtn.disabled = true;
+  }
+
+  startBtn.addEventListener("click", start);
+  pauseBtn.addEventListener("click", pause);
+  resetBtn.addEventListener("click", reset);
+  testBellBtn.addEventListener("click", ()=>ringBell({count:1, soft:softBellEl.checked}));
+
+  segmentsEl.addEventListener("input", renderSegList);
+  prepareEl.addEventListener("input", renderSegList);
+  startBellCountEl.addEventListener("input", renderSegList);
+  segmentBellCountEl.addEventListener("input", renderSegList);
+  renderSegList();
+})();
+</script>
+</body>
+</html>
